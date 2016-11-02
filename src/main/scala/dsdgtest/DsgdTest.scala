@@ -25,7 +25,7 @@ import org.apache.flink.ml.recommendation.SGD
 import scala.language.postfixOps
 import scala.util.Random
 
-object DsgdTest {
+class DsgdTest {
 
   def main(args: Array[String]): Unit = {
 
