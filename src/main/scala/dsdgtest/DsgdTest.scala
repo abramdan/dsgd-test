@@ -20,12 +20,13 @@ package dsdgtest
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.java.utils.ParameterTool
+import org.apache.flink.ml.evaluation.RankingRecommendationScores
 import org.apache.flink.ml.recommendation.SGD
 
 import scala.language.postfixOps
 import scala.util.Random
 
-class DsgdTest {
+object DsgdTest {
 
   def main(args: Array[String]): Unit = {
 
@@ -38,7 +39,7 @@ class DsgdTest {
     val outputPath = params.get("outputPath")
     val properties = params.get("properties")
 
-    def getRmse(iterations: Int, lambda: Int, numBlocks: Int, numFactors: Int, learningRate: Double,
+    def getPredictions(iterations: Int, lambda: Int, numBlocks: Int, numFactors: Int, learningRate: Double,
                 seed: Long, trainDS: DataSet[(Int, Int, Double)], testDS: DataSet[(Int, Int, Double)]) = {
 
       val dsgd = SGD()
@@ -54,9 +55,10 @@ class DsgdTest {
       val testWithoutRatings = testDS.map(i => (i._1, i._2))
 
       val predDS = dsgd.predict(testWithoutRatings)
+      predDS
+    }
 
-      //      predDS.writeAsCsv("/home/dani/data/tmp/movielens_pred_f100.csv",
-      //        writeMode = FileSystem.WriteMode.OVERWRITE).setParallelism(1)
+    def getRmse(testDS: DataSet[(Int, Int, Double)], predDS: DataSet[(Int, Int, Double)]) = {
 
       val rmse = testDS.join(predDS).where(0, 1).equalTo(0, 1)
         .map(i => (i._1._3, i._2._3))
@@ -80,15 +82,19 @@ class DsgdTest {
 
     val iterations = props("iterations").map(_.toInt)
     val blocks = props("blocks").map(_.toInt)
+    val dimension = props("dimension").map(_.toInt)
     val learningRate = props("learningrate").map(_.toDouble)
 
     for (i <- iterations) {
       for (b <- blocks) {
         for (lr <- learningRate) {
-          val seed = Random.nextLong()
-          val rmse = getRmse(i, 0, b, 10, lr, seed, trainDS, testDS)
-          val result = s"$i,$b,$lr,$rmse\n"
-          scala.tools.nsc.io.File(outputPath).appendAll(result)
+          for (d <- dimension) {
+            val seed = Random.nextLong()
+            val predDS = getPredictions(i, 0, b, d, lr, seed, trainDS, testDS)
+            val rmse = getRmse(testDS, predDS)
+            val result = s"$i,$b,$lr,$rmse\n"
+            scala.tools.nsc.io.File(outputPath).appendAll(result)
+          }
         }
       }
     }
