@@ -39,7 +39,7 @@ object DsgdTest {
     val outputPath = params.get("outputPath")
     val properties = params.get("properties")
 
-    def getPredictions(iterations: Int, lambda: Int, numBlocks: Int, numFactors: Int, learningRate: Double,
+    def getModel(iterations: Int, lambda: Int, numBlocks: Int, numFactors: Int, learningRate: Double,
                 seed: Long, trainDS: DataSet[(Int, Int, Double)], testDS: DataSet[(Int, Int, Double)]) = {
 
       val dsgd = SGD()
@@ -52,10 +52,11 @@ object DsgdTest {
 
       dsgd.fit(trainDS)
 
-      val testWithoutRatings = testDS.map(i => (i._1, i._2))
-
-      val predDS = dsgd.predict(testWithoutRatings)
-      predDS
+//      val testWithoutRatings = testDS.map(i => (i._1, i._2))
+//
+//      val predDS = dsgd.predict(testWithoutRatings)
+//      predDS
+      dsgd
     }
 
     def getRmse(testDS: DataSet[(Int, Int, Double)], predDS: DataSet[(Int, Int, Double)]) = {
@@ -69,6 +70,8 @@ object DsgdTest {
 
       rmse.collect().head
     }
+
+    val scorer = new RankingRecommendationScores(topK = 10)
 
     val trainPath = inputPath + "_train.csv"
     val testPath = inputPath + "_test.csv"
@@ -85,14 +88,21 @@ object DsgdTest {
     val dimension = props("dimension").map(_.toInt)
     val learningRate = props("learningrate").map(_.toDouble)
 
+
+    val userIDs = trainDS.map(_._1).distinct()
+    val itemIDs = trainDS.map(_._2).distinct()
+    val trainUserItems = trainDS.map(i => (i._1, i._2))
+
     for (i <- iterations) {
       for (b <- blocks) {
         for (lr <- learningRate) {
           for (d <- dimension) {
             val seed = Random.nextLong()
-            val predDS = getPredictions(i, 0, b, d, lr, seed, trainDS, testDS)
-            val rmse = getRmse(testDS, predDS)
-            val result = s"$i,$b,$lr,$rmse\n"
+            val dsgd = getModel(i, 0, b, d, lr, seed, trainDS, testDS)
+            val predictions = scorer.predictions(dsgd, userIDs, itemIDs, trainUserItems)
+            //val rmse = getRmse(testDS, predDS)
+            val avgNdcg = scorer.averageNdcg(predictions, testDS)
+            val result = s"$i,$b,$lr,$avgNdcg\n"
             scala.tools.nsc.io.File(outputPath).appendAll(result)
           }
         }
