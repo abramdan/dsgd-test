@@ -103,11 +103,11 @@ object DsgdTest {
             //val rmse = getRmse(testDS, predDS)
             val avgNdcg = scorer.averageNdcg(predictions, testDS)
 
-            val precision = scorer.precisions(predictions, testDS)
-              .map(i => (1, i._2))
-              .reduce((i, j) => (i._1 + j._1, i._2 + j._2))
-              .map(i => i._2 / i._1)
-              .collect().head
+//            val precision = scorer.precisions(predictions, testDS)
+//              .map(i => (1, i._2))
+//              .reduce((i, j) => (i._1 + j._1, i._2 + j._2))
+//              .map(i => i._2 / i._1)
+//              .collect().head
 
 //            val recall = scorer.recalls(predictions, testDS)
 //              .map(i => (1, {i._2 match {
@@ -118,7 +118,7 @@ object DsgdTest {
 //              .map(i => i._2 / i._1)
 //              .collect().head
 
-            val result = s"$i,$b,$lr,$avgNdcg,$precision\n"
+            val result = s"$i,$b,$lr,$d,$avgNdcg\n"
             scala.tools.nsc.io.File(outputPath).appendAll(result)
           }
         }
